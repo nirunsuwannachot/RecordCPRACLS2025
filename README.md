@@ -1,29 +1,33 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ACLS PRO 2026 - Control Top</title>
+    <title>ACLS PRO 2026 - Ultra Adaptive</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <style>
-        :root { --app-height: 100dvh; }
-        
-        body {
-            height: var(--app-height);
+        /* ตั้งค่าให้รองรับการเลื่อนทั้งหน้าจอถ้าเนื้อหาเกิน */
+        body, html {
+            height: 100%;
             margin: 0;
-            overflow: hidden;
             background-color: #0f172a;
             font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            flex-direction: column;
+            overflow-y: auto; /* อนุญาตให้เลื่อนขึ้นลงได้ถ้าจอเล็กเกินไป */
+            -webkit-overflow-scrolling: touch;
         }
 
-        /* ส่วนบน: หัวข้อและ Timer */
-        .header-section { flex-shrink: 0; }
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh; /* บังคับให้สูงอย่างน้อยเท่าหน้าจอ */
+            padding-bottom: env(safe-area-inset-bottom);
+        }
 
-        /* ส่วนกลาง: แผงปุ่มรักษา (ให้พื้นที่เยอะขึ้น) */
+        /* ส่วนบนคงที่ */
+        .header-section { flex-shrink: 0; z-index: 30; }
+
+        /* ส่วนปุ่มรักษา */
         .treatment-section {
             flex-shrink: 0;
             background-color: white;
@@ -31,31 +35,35 @@
             border-bottom: 2px solid #e2e8f0;
         }
 
-        /* ส่วนล่าง: บันทึกรายการ (Log) - จำกัดความสูงและ Scroll ได้ */
+        /* ส่วน Log: ล็อคความสูงไว้เบื้องต้นแต่ยืดหยุ่นได้ */
         .log-section {
-            flex-grow: 1; /* กินพื้นที่ที่เหลือ */
-            min-height: 0;
-            overflow-y: auto;
             background-color: #f8fafc;
-            -webkit-overflow-scrolling: touch;
+            min-height: 180px; /* สูงพอสำหรับ 5 รายการ */
+            flex-grow: 1;
+            overflow-y: auto;
+            border-bottom: 1px solid #e2e8f0;
         }
 
         .drug-btn {
             display: flex; align-items: center; justify-content: center;
-            height: 48px; /* ความสูงมาตรฐานให้กดง่าย */
+            height: 46px;
             font-size: clamp(10px, 3vw, 13px);
             font-weight: 800;
             border-radius: 10px;
-            transition: all 0.1s;
-            box-shadow: 0 2px 0 rgba(0,0,0,0.1);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.05);
         }
-        .drug-btn:active { transform: translateY(2px); box-shadow: none; opacity: 0.8; }
+        .drug-btn:active { transform: translateY(1px); box-shadow: none; }
 
-        .rhythm-btn {
-            height: 38px;
-            font-size: 11px;
-            font-weight: 900;
+        .log-row {
+            background: white;
+            border-left: 4px solid #3b82f6;
+            margin: 4px 10px;
+            padding: 8px;
             border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         @keyframes blink {
@@ -64,83 +72,78 @@
         }
         .blink-warning { animation: blink 0.8s infinite; color: #f43f5e !important; }
 
-        /* ตกแต่ง Log */
-        .log-row {
+        .footer-section {
+            flex-shrink: 0;
             background: white;
-            border-left: 4px solid #cbd5e1;
-            margin: 4px 10px;
-            padding: 8px;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            padding: 12px;
+            border-top: 1px solid #e2e8f0;
         }
     </style>
 </head>
 <body>
 
-    <!-- 1. HEADER (Timer & Rhythm Selection) -->
-    <header class="header-section p-3 bg-slate-900 text-white pt-[env(safe-area-inset-top)]">
-        <div class="flex justify-between items-center mb-2">
-            <h1 class="text-lg font-black text-rose-500 italic">ACLS 2026</h1>
-            <p id="total-timer" class="text-xl font-mono font-bold text-emerald-400">00:00</p>
-        </div>
-        
-        <div class="grid grid-cols-2 gap-2 mb-3">
-            <div class="bg-slate-800 p-2 rounded-lg border-2 border-blue-500 text-center">
-                <p id="cpr-timer" class="text-3xl font-mono font-black">02:00</p>
+    <div class="main-container">
+        <!-- 1. HEADER -->
+        <header class="header-section p-3 bg-slate-900 text-white pt-[env(safe-area-inset-top)]">
+            <div class="flex justify-between items-center mb-2">
+                <h1 class="text-lg font-black text-rose-500 italic">ACLS 2026</h1>
+                <p id="total-timer" class="text-xl font-mono font-bold text-emerald-400">00:00</p>
             </div>
-            <div id="guidance-text" class="bg-slate-800 p-2 rounded-lg border border-slate-700 text-[10px] text-slate-400 italic flex items-center justify-center text-center">
-                Select Rhythm to Start
+            <div class="grid grid-cols-2 gap-2 mb-2">
+                <div class="bg-slate-800 p-2 rounded-lg border-2 border-blue-500 text-center">
+                    <p id="cpr-timer" class="text-3xl font-mono font-black">02:00</p>
+                </div>
+                <div id="guidance-text" class="bg-slate-800 p-2 rounded-lg border border-slate-700 text-[10px] text-slate-400 italic flex items-center justify-center text-center">
+                    Standby
+                </div>
+            </div>
+            <button onclick="toggleStart()" id="btn-start" class="w-full bg-emerald-600 py-3 rounded-lg font-black text-xs uppercase shadow-md">Start Code Blue</button>
+        </header>
+
+        <!-- 2. TREATMENT (รักษาอยู่บน) -->
+        <div class="treatment-section">
+            <div class="grid grid-cols-3 gap-2 mb-2">
+                <button onclick="recordAction('CPR Started')" class="drug-btn border-2 border-emerald-500 text-emerald-700">CPR</button>
+                <button onclick="recordAction('IV/IO Access')" class="drug-btn border-2 border-sky-600 text-sky-700">IV/IO</button>
+                <button onclick="recordAction('IV Fluid')" class="drug-btn border-2 border-blue-400 text-blue-700">FLUID</button>
+            </div>
+            <div class="grid grid-cols-3 gap-2 mb-2">
+                <button onclick="recordDefib()" class="drug-btn bg-rose-600 text-white italic shadow-md">SHOCK</button>
+                <button onclick="recordEpi()" class="drug-btn bg-blue-600 text-white shadow-md">EPI 1mg</button>
+                <button onclick="recordAction('Amio 300mg')" class="drug-btn border-2 border-purple-500 text-purple-600">AMIO 300</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="recordAction('Amio 150mg')" class="drug-btn bg-slate-100 border border-slate-300 text-slate-700">AMIO 150</button>
+                <button onclick="recordAction('Adv. Airway')" class="drug-btn bg-orange-100 border border-orange-300 text-orange-800 italic">ADV. AIRWAY</button>
             </div>
         </div>
 
-        <button onclick="toggleStart()" id="btn-start" class="w-full bg-emerald-600 py-2.5 rounded-lg font-black text-xs uppercase mb-3 shadow-lg">Start Code Blue</button>
+        <!-- 3. LOG (จำกัดความสูงเริ่มต้นแต่เลื่อนดูได้) -->
+        <div class="log-section" id="log-container">
+            <div class="px-4 py-1.5 text-[9px] uppercase font-bold text-slate-400 sticky top-0 bg-[#f8fafc] z-10 border-b">Timeline Record</div>
+            <div id="log-body">
+                <!-- รายการจะเพิ่มที่นี่ -->
+            </div>
+        </div>
 
-        <div class="grid grid-cols-4 gap-1.5">
-            <button onclick="setRhythm('VF')" class="rhythm-btn bg-rose-700">VF</button>
-            <button onclick="setRhythm('pVT')" class="rhythm-btn bg-rose-500">pVT</button>
-            <button onclick="setRhythm('PEA')" class="rhythm-btn bg-blue-700">PEA</button>
-            <button onclick="setRhythm('Asystole')" class="rhythm-btn bg-sky-600">Asystole</button>
-        </div>
-    </header>
-
-    <!-- 2. TREATMENT (Drug Buttons - อยู่บน Log แล้ว) -->
-    <div class="treatment-section">
-        <div class="grid grid-cols-3 gap-2 mb-2">
-            <button onclick="recordAction('CPR Started')" class="drug-btn border-2 border-emerald-500 text-emerald-700">CPR</button>
-            <button onclick="recordAction('Access IV/IO')" class="drug-btn border-2 border-sky-600 text-sky-700">IV/IO</button>
-            <button onclick="recordAction('IV Fluid')" class="drug-btn border-2 border-blue-400 text-blue-700">FLUID</button>
-        </div>
-        <div class="grid grid-cols-3 gap-2 mb-2">
-            <button onclick="recordDefib()" class="drug-btn bg-rose-600 text-white italic">SHOCK</button>
-            <button onclick="recordEpi()" class="drug-btn bg-blue-600 text-white shadow-md">EPI 1mg</button>
-            <button onclick="recordAction('Amio 300mg')" class="drug-btn border-2 border-purple-500 text-purple-600">AMIO 300</button>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-            <button onclick="recordAction('Amio 150mg')" class="drug-btn bg-slate-100 border border-slate-300 text-slate-700">AMIO 150</button>
-            <button onclick="recordAction('Adv. Airway')" class="drug-btn bg-orange-100 border border-orange-300 text-orange-800 italic">ADV. AIRWAY</button>
-        </div>
+        <!-- 4. FOOTER (ปุ่มจบเคส) -->
+        <footer class="footer-section">
+            <div class="flex items-center gap-3">
+                <button onclick="showSummary('ROSC')" class="flex-[2] bg-emerald-500 text-white py-4 rounded-xl font-black text-xs uppercase shadow-lg">ROSC</button>
+                <div class="flex gap-1.5 flex-1">
+                    <div class="bg-rose-600 text-white flex-1 py-1.5 rounded-lg text-center leading-none">
+                        <p class="text-[7px] mb-1">SHOCK</p>
+                        <p id="dash-shock" class="text-xl font-black">0</p>
+                    </div>
+                    <div class="bg-blue-600 text-white flex-1 py-1.5 rounded-lg text-center leading-none">
+                        <p class="text-[7px] mb-1">EPI</p>
+                        <p id="dash-epi" class="text-xl font-black">0</p>
+                    </div>
+                </div>
+                <button onclick="showSummary('DEAD')" class="flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-[9px] uppercase">DEAD</button>
+            </div>
+        </footer>
     </div>
-
-    <!-- 3. LOG (Record History - อยู่ล่างสุด) -->
-    <div class="log-section" id="log-container">
-        <div class="p-2 text-[10px] uppercase font-bold text-slate-400 sticky top-0 bg-[#f8fafc] z-10">Timeline Record</div>
-        <div id="log-body">
-            <!-- New entries appear here -->
-        </div>
-    </div>
-
-    <!-- 4. FOOTER (Summary Buttons) -->
-    <footer class="bg-white border-t p-3 flex items-center gap-3 pb-[calc(env(safe-area-inset-bottom)+10px)]">
-        <button onclick="showSummary('ROSC')" class="flex-[2] bg-emerald-500 text-white py-4 rounded-xl font-black text-xs uppercase shadow-lg">ROSC</button>
-        <div class="flex gap-1.5 flex-1">
-            <div class="bg-rose-600 text-white flex-1 py-1 rounded-xl text-center"><p class="text-[7px]">SHOCK</p><p id="dash-shock" class="text-xl font-black">0</p></div>
-            <div class="bg-blue-600 text-white flex-1 py-1 rounded-xl text-center"><p class="text-[7px]">EPI</p><p id="dash-epi" class="text-xl font-black">0</p></div>
-        </div>
-        <button onclick="showSummary('DEAD')" class="flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-[9px] uppercase">DEAD</button>
-    </footer>
 
     <script>
         let totalSec = 0, cprSec = 120, isRunning = false, mainInterval = null;
@@ -155,7 +158,7 @@
         function toggleStart() {
             const btn = document.getElementById('btn-start');
             if (!isRunning) {
-                isRunning = true; btn.innerText = 'PAUSE'; btn.className = 'w-full bg-amber-600 py-2.5 rounded-lg font-black text-xs uppercase shadow-lg';
+                isRunning = true; btn.innerText = 'PAUSE'; btn.className = 'w-full bg-amber-600 py-3 rounded-lg font-black text-xs uppercase shadow-md';
                 mainInterval = setInterval(() => {
                     totalSec++; cprSec--;
                     document.getElementById('total-timer').innerText = formatTime(totalSec);
@@ -166,7 +169,7 @@
                     if (cprSec <= 0) { cprSec = 120; triggerAlert(); }
                 }, 1000);
             } else {
-                isRunning = false; btn.innerText = 'RESUME'; btn.className = 'w-full bg-emerald-600 py-2.5 rounded-lg font-black text-xs uppercase shadow-lg';
+                isRunning = false; btn.innerText = 'RESUME'; btn.className = 'w-full bg-emerald-600 py-3 rounded-lg font-black text-xs uppercase shadow-md';
                 clearInterval(mainInterval);
             }
         }
@@ -179,7 +182,7 @@
 
         function recordAction(msg) {
             const now = new Date();
-            const realTime = now.toLocaleTimeString('th-TH', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            const realTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
             const elapsed = formatTime(totalSec);
             timelineData.push({ realTime, elapsed, action: msg });
             
@@ -189,21 +192,14 @@
             div.innerHTML = `
                 <div class="flex flex-col">
                     <span class="text-[11px] font-black text-slate-800 uppercase">${msg}</span>
-                    <span class="text-[8px] text-slate-400 font-bold">Total: ${elapsed}</span>
+                    <span class="text-[8px] text-slate-400 font-bold">T+ ${elapsed}</span>
                 </div>
                 <div class="text-[10px] font-mono text-slate-500">${realTime}</div>
             `;
-            // เพิ่มรายการใหม่ไว้บนสุดของ Log Section
             logBody.insertBefore(div, logBody.firstChild);
-        }
-
-        function setRhythm(type) {
-            const isShock = (type === 'VF' || type === 'pVT');
-            document.getElementById('guidance-text').innerHTML = isShock ? 
-                `<b class="text-rose-500 uppercase">SHOCKABLE</b><br>Shock 200J & CPR` : 
-                `<b class="text-blue-500 uppercase">NON-SHOCK</b><br>Epi 1mg & CPR`;
-            recordAction(`Rhythm: ${type}`);
-            if (!isRunning) toggleStart();
+            
+            // Auto-scroll เฉพาะในส่วนของ Log ให้เห็นรายการล่าสุดเสมอ
+            document.getElementById('log-container').scrollTop = 0;
         }
 
         function recordDefib() {
@@ -221,9 +217,12 @@
             if (isRunning) toggleStart();
             Swal.fire({
                 title: 'Case Summary',
-                html: `<b>Outcome: ${outcome}</b><br>Time: ${formatTime(totalSec)}<br>Shocks: ${defibCount}<br>Epi: ${epiCount}`,
-                confirmButtonText: 'New Case',
-                preConfirm: () => location.reload()
+                html: `Outcome: ${outcome}<br>Time: ${formatTime(totalSec)}<br>Shocks: ${defibCount}<br>Epi: ${epiCount}`,
+                confirmButtonText: 'Close',
+                showCancelButton: true,
+                cancelButtonText: 'New Case',
+            }).then((result) => {
+                if (result.dismiss === Swal.DismissReason.cancel) location.reload();
             });
         }
     </script>
